@@ -3,574 +3,399 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的桌遊收藏庫</title>
+    <title>Boardgaholic桌遊列表</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- PapaParse: 用來解析 CSV 的神器 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <style>
-        :root {
-            --primary: #2c3e50;
-            --accent: #3498db;
-            --bg: #f5f6fa;
-            --card-bg: #ffffff;
-            --text: #2d3436;
-        }
-
-        body {
-            font-family: 'Segoe UI', "Microsoft JhengHei", sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        h1 {
-            text-align: center;
-            color: var(--primary);
-            margin-bottom: 30px;
-        }
-
-        /* 控制面板樣式 */
-        .controls {
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            align-items: end;
-        }
-
-        .control-group {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .control-group label {
-            margin-bottom: 5px;
-            font-weight: bold;
-            font-size: 0.9em;
-            color: #636e72;
-        }
-
-        input, select {
-            padding: 10px;
-            border: 1px solid #dfe6e9;
-            border-radius: 5px;
-            font-size: 16px;
-        }
-
-        /* 遊戲列表樣式 */
-        .game-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
-        }
-
-        .game-card {
-            background: var(--card-bg);
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            transition: transform 0.2s, box-shadow 0.2s;
-            display: flex;
-            flex-direction: column;
-            border-top: 4px solid transparent;
-        }
-
-        .game-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
-        }
-
-        .card-body {
-            padding: 15px;
-            flex-grow: 1;
-        }
-
-        .game-id {
-            font-size: 0.8em;
-            color: #b2bec3;
-            margin-bottom: 5px;
-        }
-
-        .game-title-zh {
-            font-size: 1.2em;
-            font-weight: bold;
-            margin-bottom: 5px;
-            color: var(--primary);
-        }
-
-        .game-title-en {
-            font-size: 0.9em;
-            color: #636e72;
-            margin-bottom: 15px;
-            font-style: italic;
-        }
-
-        .game-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #f1f2f6;
-            padding: 8px;
-            border-radius: 5px;
-            font-size: 0.9em;
-        }
-
-        .meta-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .difficulty-badge {
-            padding: 3px 8px;
-            border-radius: 12px;
-            font-size: 0.8em;
-            font-weight: bold;
-            color: white;
-        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         
-        .diff-easy { background-color: #27ae60; border-top-color: #27ae60; }
-        .diff-medium { background-color: #f39c12; border-top-color: #f39c12; }
-        .diff-hard { background-color: #c0392b; border-top-color: #c0392b; }
-        .diff-unknown { background-color: #95a5a6; border-top-color: #95a5a6; }
+        .game-card { transition: all 0.3s ease; }
+        .game-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        
+        /* 難度標籤顏色 */
+        .badge-easy { background-color: #dcfce7; color: #166534; }
+        .badge-medium { background-color: #fef9c3; color: #854d0e; }
+        .badge-hard { background-color: #fee2e2; color: #991b1b; }
+        .badge-unknown { background-color: #f1f5f9; color: #64748b; }
 
-        .status-badge {
-            display: inline-block;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.75em;
-            margin-bottom: 8px;
-        }
-        .status-opened { background-color: #e1f5fe; color: #0288d1; border: 1px solid #b3e5fc; }
-        .status-new { background-color: #ffebee; color: #d32f2f; border: 1px solid #ffcdd2; }
+        /* 狀態標籤 */
+        .status-opened { background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+        .status-new { background-color: #fce7f3; color: #be185d; border: 1px solid #fbcfe8; }
 
-        .card-footer {
-            padding: 10px 15px;
-            border-top: 1px solid #f1f2f6;
-            text-align: center;
-        }
-
-        .btn-search-img {
-            text-decoration: none;
-            color: var(--accent);
-            font-size: 0.9em;
-            font-weight: bold;
-            display: block;
+        /* 圖片容器 */
+        .img-container {
             width: 100%;
-            cursor: pointer;
+            height: 160px; /* 固定高度保持整齊 */
+            background-color: #f8fafc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border-bottom: 1px solid #e2e8f0;
+            position: relative;
+        }
+        .img-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* 保持比例填滿 */
+            transition: transform 0.5s ease;
+        }
+        .game-card:hover .img-container img {
+            transform: scale(1.05);
         }
         
-        .btn-search-img:hover {
-            text-decoration: underline;
+        /* 預設圖示樣式 */
+        .placeholder-icon {
+            font-size: 3rem;
+            color: #cbd5e1;
         }
 
-        .empty-state {
-            grid-column: 1 / -1;
-            text-align: center;
-            padding: 50px;
-            color: #b2bec3;
-            font-size: 1.2em;
+        /* 讀取動畫 */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4f46e5;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
         }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
 
-<div class="container">
-    <h1>🎲 桌遊收藏搜尋器</h1>
-
-    <div class="controls">
-        <div class="control-group">
-            <label>🔍 搜尋名稱</label>
-            <input type="text" id="searchInput" placeholder="輸入中文或英文名稱...">
-        </div>
-        <div class="control-group">
-            <label>👥 玩家人數</label>
-            <input type="number" id="playerInput" placeholder="例如: 4" min="1" max="20">
-        </div>
-        <div class="control-group">
-            <label>🧩 難度 (BGG Weight)</label>
-            <select id="difficultySelect">
-                <option value="all">全部難度</option>
-                <option value="easy">簡易 (1.0 - 1.9)</option>
-                <option value="medium">中等 (2.0 - 2.9)</option>
-                <option value="hard">重策 (3.0+)</option>
-            </select>
-        </div>
-        <div class="control-group">
-            <label>📦 狀態</label>
-            <select id="statusSelect">
-                <option value="all">全部</option>
-                <option value="opened">已開 (True)</option>
-                <option value="new">未開 (False)</option>
-            </select>
-        </div>
-        <div class="control-group" style="justify-content: flex-end;">
-            <div style="font-size: 0.9em; color: #636e72; padding-bottom: 10px;">
-                共 <span id="countDisplay" style="font-weight: bold; color: var(--accent);">0</span> 款遊戲
+    <header class="bg-white shadow-sm sticky top-0 z-10">
+        <div class="container mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-cloud-arrow-down text-3xl text-indigo-600"></i>
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-800">Boardgaholic桌遊列表</h1>
+                    <p class="text-xs text-slate-500">資料來源: Google Sheet</p>
+                </div>
             </div>
+            <div class="text-sm text-slate-500 font-medium">
+                目前共有 <span id="countDisplay" class="text-indigo-600 font-bold text-lg">0</span> 款遊戲
+            </div>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-4 py-8">
+        
+        <!-- 設定提示區塊 -->
+        <div id="setupGuide" class="hidden bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fa-solid fa-circle-exclamation text-yellow-400"></i>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-yellow-800">尚未連結 Google Sheet</h3>
+                    <div class="mt-2 text-sm text-yellow-700">
+                        <p>請編輯此 HTML 檔案，找到 <code class="bg-yellow-100 px-1 rounded">GOOGLE_SHEET_CSV_URL</code> 變數，並貼上您的 CSV 連結。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 圖片提示區塊 (當偵測到有連結但沒圖片時顯示) -->
+        <div id="imageGuide" class="hidden bg-blue-50 border-l-4 border-blue-400 p-4 mb-8">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fa-solid fa-image text-blue-400"></i>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-blue-800">如何顯示圖片？</h3>
+                    <div class="mt-2 text-sm text-blue-700">
+                        <p>您的資料表似乎還沒有圖片欄位。請在 Google Sheet 中新增一欄標題為 <strong>「圖片」</strong> 或 <strong>「Image」</strong>，並貼上圖片網址即可自動顯示！</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 載入中動畫 -->
+        <div id="loading" class="flex flex-col items-center justify-center py-20">
+            <div class="loader mb-4"></div>
+            <p class="text-slate-500">正在從雲端讀取桌遊清單...</p>
+        </div>
+
+        <!-- 控制面板 -->
+        <div id="controls" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="relative group">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">🔍 搜尋名稱</label>
+                    <div class="relative">
+                        <input type="text" id="searchInput" class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" placeholder="輸入中文或英文...">
+                        <i class="fa-solid fa-search absolute left-3 top-3 text-slate-400"></i>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">👥 玩家人數</label>
+                    <div class="relative">
+                        <input type="number" id="playerInput" min="1" max="99" class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" placeholder="例如: 4">
+                        <i class="fa-solid fa-users absolute left-3 top-3 text-slate-400"></i>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">🧠 策略難度</label>
+                    <div class="relative">
+                        <select id="difficultySelect" class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none cursor-pointer transition-all">
+                            <option value="all">全部難度</option>
+                            <option value="easy">🟢 輕鬆入門 (1.0 - 1.9)</option>
+                            <option value="medium">🟡 中度策略 (2.0 - 2.9)</option>
+                            <option value="hard">🔴 重度燒腦 (3.0+)</option>
+                        </select>
+                        <i class="fa-solid fa-puzzle-piece absolute left-3 top-3 text-slate-400"></i>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">📦 收藏狀態</label>
+                    <div class="relative">
+                        <select id="statusSelect" class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none cursor-pointer transition-all">
+                            <option value="all">全部狀態</option>
+                            <option value="opened">🔓 已拆封</option>
+                            <option value="new">🔒 未拆封</option>
+                        </select>
+                        <i class="fa-solid fa-box absolute left-3 top-3 text-slate-400"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 遊戲列表網格 -->
+        <div id="gameGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 min-h-[200px]">
+            <!-- JS 將在此處插入卡片 -->
+        </div>
+
+        <div id="emptyState" class="hidden text-center py-20">
+            <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-slate-100 mb-6">
+                <i class="fa-solid fa-ghost text-4xl text-slate-300"></i>
+            </div>
+            <h3 class="text-xl font-bold text-slate-700 mb-2">找不到符合的遊戲</h3>
+            <p class="text-slate-500">試著調整搜尋條件或是人數限制看看？</p>
         </div>
     </div>
 
-    <div id="gameGrid" class="game-grid">
-        </div>
-</div>
+    <script>
+        // ==========================================
+        // ▼ 請在這裡貼上您的 Google Sheet CSV 連結 ▼
+        // ==========================================
+        const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSr7Ld-M_wkK6_pzozlsVRQgX8g8lxtjsWRibH4RB-8XjFdGtdM2-4oDI7vDkH2pA/pub?output=csv'; 
+        // 範例格式: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR...../pub?output=csv'
 
-<script>
-    // 完整的桌遊資料
-    const gamesData = [
-{id:1, opened:true, nameZh:"歐洲十日遊", nameEn:"10 days Europe", min:2, max:4, weight:1.35},
-{id:2, opened:false, nameZh:"5-minute Marvel", nameEn:"5-minute Marvel", min:2, max:5, weight:1.14},
-{id:3, opened:false, nameZh:"地精街75號", nameEn:"75 Gnom Street", min:2, max:4, weight:1.83},
-{id:4, opened:true, nameZh:"瞎掰王", nameEn:"9upper", min:3, max:9, weight:null},
-{id:5, opened:true, nameZh:"出包魔法師", nameEn:"Abraca...What?", min:2, max:5, weight:1.64},
-{id:6, opened:true, nameZh:"海盜喵王", nameEn:"Ahoy! Kitten", min:2, max:6, weight:1},
-{id:7, opened:true, nameZh:"雅典衛城", nameEn:"Akropolis", min:1, max:4, weight:1.81},
-{id:8, opened:true, nameZh:"諜影神偷", nameEn:"Android: Infiltration", min:2, max:6, weight:2.1},
-{id:9, opened:true, nameZh:"字字轉機", nameEn:"Anomia", min:2, max:6, weight:1.04},
-{id:10, opened:true, nameZh:"水族館", nameEn:"Aqua Garden", min:1, max:4, weight:2.75},
-{id:11, opened:true, nameZh:"方舟動物園", nameEn:"Ark Nova", min:1, max:4, weight:3.78},
-{id:12, opened:true, nameZh:"詭鎮奇談", nameEn:"Arkham Horror", min:1, max:8, weight:3.58},
-{id:13, opened:true, nameZh:"軸心國與同盟國(英)", nameEn:"Axis & Allies", min:2, max:5, weight:3.22},
-{id:14, opened:true, nameZh:"花磚物語: 琉璃之光", nameEn:"Azul: Stained Glass Sintra", min:2, max:4, weight:1.77},
-{id:15, opened:false, nameZh:"客人來之前", nameEn:"Before the Guests Arrive", min:2, max:4, weight:1.33},
-{id:16, opened:true, nameZh:"山中小屋 第三版(簡)", nameEn:"Betrayal at House on the Hill Third Edition", min:3, max:6, weight:2.4},
-{id:17, opened:false, nameZh:"森靈之道", nameEn:"Bitoku", min:1, max:4, weight:3.76},
-{id:18, opened:false, nameZh:"黑骷髏島", nameEn:"Black Skull Island", min:2, max:9, weight:1.29},
-{id:19, opened:false, nameZh:"香港大停電", nameEn:"Blackout: Hong Kong", min:1, max:4, weight:3.47},
-{id:20, opened:true, nameZh:"大格鬥", nameEn:"Blokus", min:2, max:4, weight:1.74},
-{id:21, opened:false, nameZh:"天恩湖", nameEn:"Boon Lake", min:1, max:4, weight:3.8},
-{id:22, opened:true, nameZh:"你炸我彈他", nameEn:"BOOOOOM", min:2, max:10, weight:null},
-{id:23, opened:true, nameZh:"伯明翰", nameEn:"Brass: Birmingham", min:2, max:4, weight:3.87},
-{id:24, opened:true, nameZh:"Builders of Babel", nameEn:"Builders of Babel", min:2, max:5, weight:1},
-{id:25, opened:false, nameZh:"彩色島", nameEn:"Burano", min:2, max:4, weight:3.77},
-{id:26, opened:true, nameZh:"全力衝廁", nameEn:"Call of Nature", min:3, max:6, weight:1},
-{id:27, opened:true, nameZh:"駱駝大賽", nameEn:"Camel Up", min:3, max:8, weight:1.5},
-{id:28, opened:false, nameZh:"雨林生機", nameEn:"Canopy", min:1, max:4, weight:2},
-{id:29, opened:true, nameZh:"卡卡頌", nameEn:"Carcassonne", min:2, max:6, weight:1.89},
-{id:30, opened:true, nameZh:"王國製圖師", nameEn:"Cartographers: A Roll Player Tale", min:1, max:100, weight:1.87},
-{id:31, opened:true, nameZh:"卡斯卡迪亞之旅 自然地標", nameEn:"Cascadia:Landmarks", min:1, max:6, weight:2.26},
-{id:32, opened:false, nameZh:"盒中貓", nameEn:"Cat in the Box", min:2, max:5, weight:2.04},
-{id:33, opened:true, nameZh:"卡坦島卡牌版", nameEn:"Catan Card Game", min:2, max:4, weight:null},
-{id:34, opened:true, nameZh:"洞穴農夫", nameEn:"Caverna: The Cave Farmers", min:1, max:7, weight:3.78},
-{id:35, opened:true, nameZh:"凱呂斯 1303: 腓力四世的建築師們", nameEn:"Caylus 1303", min:2, max:5, weight:2.86},
-{id:36, opened:true, nameZh:"詐賭巫師", nameEn:"Cheaty Mages", min:3, max:6, weight:1.59},
-{id:37, opened:true, nameZh:"奶酪大盜", nameEn:"Cheese Thief", min:4, max:8, weight:1.15},
-{id:38, opened:true, nameZh:"席絲琳", nameEn:"Chesney", min:4, max:10, weight:2.33},
-{id:39, opened:false, nameZh:"解放馬戲團(英)", nameEn:"Circus Rescue", min:2, max:5, weight:null},
-{id:40, opened:true, nameZh:"城市規劃師", nameEn:"City Connect", min:1, max:4, weight:null},
-{id:41, opened:false, nameZh:"德國蟑螂皇家版", nameEn:"Cockroach Poker Royal", min:2, max:6, weight:1.14},
-{id:42, opened:true, nameZh:"機密代號", nameEn:"Codenames", min:2, max:100, weight:1.26},
-{id:43, opened:false, nameZh:"科英布拉", nameEn:"Coimbra", min:2, max:4, weight:3.26},
-{id:44, opened:false, nameZh:"深淵密謀", nameEn:"Conspiracy: Abyss Universe", min:2, max:4, weight:1.8},
-{id:45, opened:false, nameZh:"庫珀島(簡)", nameEn:"Cooper Island", min:1, max:4, weight:4.17},
-{id:46, opened:true, nameZh:"密弒派對", nameEn:"Costume Party Assassins", min:2, max:6, weight:1.21},
-{id:47, opened:false, nameZh:"狂奔嘉年華", nameEn:"Crazy Turf", min:2, max:6, weight:1.67},
-{id:48, opened:false, nameZh:"極寒地帶", nameEn:"Cryo", min:2, max:4, weight:2.76},
-{id:49, opened:false, nameZh:"達爾文的旅程(簡)", nameEn:"Darwin's Journey", min:1, max:4, weight:3.91},
-{id:50, opened:true, nameZh:"黎明死線", nameEn:"Dead by Daylight", min:3, max:5, weight:2.6},
-{id:51, opened:true, nameZh:"死亡寒冬", nameEn:"Dead of Winter: A Crossroads Game", min:2, max:5, weight:3.01},
-{id:52, opened:true, nameZh:"截碼戰", nameEn:"Decrypto", min:3, max:8, weight:1.83},
-{id:53, opened:false, nameZh:"海底探險", nameEn:"Deep Sea Adventure", min:2, max:6, weight:1.19},
-{id:54, opened:false, nameZh:"甜點大胃王", nameEn:"Dessert Queen", min:3, max:10, weight:1.18},
-{id:55, opened:true, nameZh:"命運之輪", nameEn:"Destinies", min:1, max:3, weight:1.92},
-{id:56, opened:true, nameZh:"鍛骰物語", nameEn:"Dice Forge", min:2, max:4, weight:1.97},
-{id:57, opened:false, nameZh:"碧藍深處", nameEn:"Dive", min:1, max:4, weight:1.39},
-{id:58, opened:true, nameZh:"妙語說書人 迪士尼", nameEn:"Dixit Disney", min:2, max:6, weight:null},
-{id:59, opened:false, nameZh:"ドコジャン", nameEn:"Dokojong", min:2, max:5, weight:1.56},
-{id:60, opened:false, nameZh:"骰、危險和地下城", nameEn:"Dungeon Dice and Danger", min:1, max:4, weight:1.92},
-{id:61, opened:false, nameZh:"Dungeon of Mandom VIII", nameEn:"Dungeon of Mandom VIII", min:2, max:4, weight:1.44},
-{id:62, opened:true, nameZh:"Durian", nameEn:"Durian", min:2, max:7, weight:1.13},
-{id:63, opened:true, nameZh:"藍星", nameEn:"Earth", min:1, max:5, weight:2.89},
-{id:64, opened:true, nameZh:"全球驚慄", nameEn:"Eldritch Horror", min:1, max:8, weight:3.32},
-{id:65, opened:true, nameZh:"中世紀：時代紀元", nameEn:"ERA", min:1, max:4, weight:null},
-{id:66, opened:true, nameZh:"仙境幽谷", nameEn:"Everdell", min:1, max:4, weight:2.82},
-{id:67, opened:false, nameZh:"新演化論", nameEn:"Evolution", min:2, max:6, weight:2.43},
-{id:68, opened:true, nameZh:"爆炸貓", nameEn:"Exploding Kittens", min:2, max:5, weight:1.08},
-{id:69, opened:true, nameZh:"爆炸貓 派對版", nameEn:"Exploding Kittens: Party Pack", min:2, max:10, weight:1.06},
-{id:70, opened:false, nameZh:"精靈的惡作劇", nameEn:"Fairy Prank", min:2, max:6, weight:1},
-{id:71, opened:true, nameZh:"幻想國度", nameEn:"Fantasy Realms", min:2, max:6, weight:1.81},
-{id:72, opened:false, nameZh:"頭等艙列車", nameEn:"First Class: All Aboard the Orient Express!", min:2, max:4, weight:2.8},
-{id:73, opened:true, nameZh:"第一類接觸", nameEn:"First Contact", min:2, max:7, weight:2},
-{id:74, opened:true, nameZh:"號外！動物日報(簡)", nameEn:"Fit to Print", min:1, max:6, weight:2.08},
-{id:75, opened:true, nameZh:"荒野大彈客：死亡寒冬", nameEn:"Flick 'em up!: Dead of Winter", min:1, max:10, weight:2.1},
-{id:76, opened:false, nameZh:"富士流", nameEn:"Fuji Flush", min:3, max:8, weight:1.09},
-{id:77, opened:true, nameZh:"無間風雲", nameEn:"Good Cop Bad Cop", min:4, max:8, weight:1.26},
-{id:78, opened:false, nameZh:"倫敦公會", nameEn:"Guilds of London", min:1, max:4, weight:3.06},
-{id:79, opened:true, nameZh:"花火", nameEn:"Hanabi", min:2, max:5, weight:null},
-{id:80, opened:false, nameZh:"花見小路", nameEn:"Hanamikoji", min:2, max:2, weight:1.68},
-{id:81, opened:true, nameZh:"犯人在跳舞", nameEn:"Hannin Wa Odoru", min:3, max:8, weight:1.16},
-{id:82, opened:true, nameZh:"彩虹小鎮", nameEn:"Happy City", min:2, max:5, weight:1.27},
-{id:83, opened:true, nameZh:"熱力狂飆(英)", nameEn:"HEAT: Pedal To The Metal", min:1, max:6, weight:2.19},
-{id:84, opened:true, nameZh:"亡命之途", nameEn:"Hit Z Road", min:1, max:4, weight:1.85},
-{id:85, opened:true, nameZh:"酒店大亨", nameEn:"Hotel Tycoon", min:2, max:4, weight:1.39},
-{id:86, opened:true, nameZh:"電梯前", nameEn:"In Front of the Elevators", min:2, max:4, weight:1.42},
-{id:87, opened:false, nameZh:"龍年", nameEn:"In the Year of the Dragon", min:2, max:5, weight:3.08},
-{id:88, opened:true, nameZh:"印加尋寶", nameEn:"Incan Gold", min:3, max:8, weight:1.11},
-{id:89, opened:true, nameZh:"盜夢都市", nameEn:"Inception", min:4, max:8, weight:2.19},
-{id:90, opened:true, nameZh:"命懸一線 彩虹版", nameEn:"ito Rainbow", min:2, max:14, weight:1},
-{id:91, opened:true, nameZh:"英雄止步", nameEn:"Keep The Heroes Out", min:1, max:4, weight:2.49},
-{id:92, opened:false, nameZh:"關鍵物種：北美洲", nameEn:"Keystone: North America", min:1, max:4, weight:2.24},
-{id:93, opened:true, nameZh:"東京之王 怪獸極限盒", nameEn:"King of Tokyo: Monster Box", min:2, max:6, weight:1.39},
-{id:94, opened:true, nameZh:"王國保衛戰", nameEn:"Kingdom Rush", min:1, max:4, weight:2.99},
-{id:95, opened:true, nameZh:"拉斯維加斯豪華版", nameEn:"Las Vegas Royale", min:2, max:5, weight:null},
-{id:96, opened:false, nameZh:"驚魂星期五", nameEn:"Last Friday", min:2, max:6, weight:2.26},
-{id:97, opened:true, nameZh:"木林幻境", nameEn:"Legendary Forest", min:2, max:5, weight:1.25},
-{id:98, opened:true, nameZh:"來去日本(簡)", nameEn:"Let's Go! To Japan", min:1, max:4, weight:2.26},
-{id:99, opened:true, nameZh:"駭浪求生", nameEn:"Lifeboats", min:4, max:6, weight:1.74},
-{id:100, opened:true, nameZh:"全員逃生", nameEn:"Lifeboats: Plank of Carneades", min:3, max:7, weight:1.67},
-{id:101, opened:true, nameZh:"小小村莊", nameEn:"Little Town", min:2, max:4, weight:1.95},
-{id:102, opened:true, nameZh:"骰子街1", nameEn:"Machi Koro 1", min:2, max:5, weight:1.52},
-{id:103, opened:true, nameZh:"骰子街2", nameEn:"Machi Koro 2", min:2, max:5, weight:1.51},
-{id:104, opened:true, nameZh:"街口:傳承", nameEn:"Machi Koro: Legacy", min:2, max:4, weight:1.89},
-{id:105, opened:false, nameZh:"黑幫動物園", nameEn:"MafioZoo", min:2, max:4, weight:2.43},
-{id:106, opened:true, nameZh:"部落集結", nameEn:"Majesty: For the Realm", min:2, max:4, weight:1.72},
-{id:107, opened:true, nameZh:"魔物討伐隊", nameEn:"Mamono Raid+", min:3, max:4, weight:3},
-{id:108, opened:true, nameZh:"漫威 - 宇宙大亂鬥", nameEn:"Marvel: Remix", min:2, max:6, weight:1.79},
-{id:109, opened:true, nameZh:"月面探険", nameEn:"Moon Adventure", min:2, max:5, weight:2.23},
-{id:110, opened:false, nameZh:"詭秘莊園", nameEn:"Mysterium", min:2, max:7, weight:1.89},
-{id:111, opened:true, nameZh:"暑假日記", nameEn:"Natsumemo", min:3, max:6, weight:1.33},
-{id:112, opened:true, nameZh:"紐約動物園", nameEn:"New York Zoo", min:1, max:5, weight:1.95},
-{id:113, opened:false, nameZh:"核子激蕩", nameEn:"Nucleum", min:1, max:4, weight:4.17},
-{id:114, opened:true, nameZh:"溫泉繁盛記", nameEn:"Nukumi Onsen Hanjouki", min:1, max:4, weight:2.09},
-{id:115, opened:true, nameZh:"從前從前", nameEn:"Once Upon a Time", min:2, max:6, weight:1.37},
-{id:116, opened:false, nameZh:"注文の多すぎるゲーム：カフェ(日)", nameEn:"Order Overload: Cafe", min:2, max:6, weight:1.35},
-{id:117, opened:false, nameZh:"石器時代2.0", nameEn:"Paleo", min:2, max:4, weight:2.65},
-{id:118, opened:false, nameZh:"瘟疫危機：快速反應", nameEn:"Pandemic: Rapid Response", min:2, max:4, weight:2.11},
-{id:119, opened:true, nameZh:"瘟疫危機：浪潮洶湧", nameEn:"Pandemic: Rising Tide", min:2, max:5, weight:2.53},
-{id:120, opened:true, nameZh:"王國軼聞錄", nameEn:"Paper Tales", min:2, max:5, weight:2.18},
-{id:121, opened:true, nameZh:"雨後新香", nameEn:"Petrichor", min:1, max:4, weight:3.03},
-{id:122, opened:false, nameZh:"法老秘寶", nameEn:"Pharaoh's Gulo Gulo", min:2, max:6, weight:1.19},
-{id:123, opened:false, nameZh:"未知行星", nameEn:"Planet Unknown", min:1, max:6, weight:2.23},
-{id:124, opened:false, nameZh:"瘋魔口袋", nameEn:"Pocket Madness", min:2, max:4, weight:1.31},
-{id:125, opened:true, nameZh:"得分城市", nameEn:"Point City", min:1, max:4, weight:1.69},
-{id:126, opened:false, nameZh:"電力公司", nameEn:"Power Grid", min:2, max:6, weight:3.25},
-{id:127, opened:true, nameZh:"方格都市", nameEn:"Quadropolis", min:2, max:4, weight:2.2},
-{id:128, opened:true, nameZh:"賽馬大亨", nameEn:"Ready Set Bet", min:2, max:9, weight:1.32},
-{id:129, opened:true, nameZh:"珊瑚物語", nameEn:"Reef", min:2, max:4, weight:1.82},
-{id:130, opened:false, nameZh:"旅のあと(日英)", nameEn:"Remember Our Trip", min:2, max:4, weight:2.15},
-{id:131, opened:true, nameZh:"矩陣密室", nameEn:"Room 25", min:1, max:6, weight:1.93},
-{id:132, opened:true, nameZh:"合租時代", nameEn:"Room Share", min:2, max:4, weight:1},
-{id:133, opened:true, nameZh:"茂林源記", nameEn:"Root", min:3, max:4, weight:3.82},
-{id:134, opened:true, nameZh:"魔力橋", nameEn:"Rummikub", min:2, max:6, weight:1},
-{id:135, opened:true, nameZh:"矮人礦坑", nameEn:"Saboteur", min:3, max:10, weight:1.32},
-{id:136, opened:true, nameZh:"矮人掘金:幽谷秘庫", nameEn:"Saboteur: The Lost Mines", min:3, max:9, weight:2.05},
-{id:137, opened:true, nameZh:"獵巫鎮", nameEn:"Salem 1692", min:4, max:12, weight:2.1},
-{id:138, opened:false, nameZh:"聖胡安", nameEn:"San Juan", min:2, max:4, weight:2.08},
-{id:139, opened:true, nameZh:"Scout", nameEn:"Scout", min:2, max:5, weight:1.36},
-{id:140, opened:false, nameZh:"開溜!", nameEn:"Scram!", min:3, max:6, weight:1.38},
-{id:141, opened:false, nameZh:"海鹽折紙", nameEn:"Sea Salt & Paper", min:2, max:4, weight:1.48},
-{id:142, opened:true, nameZh:"揭秘希特勒(英)", nameEn:"Secret Hitler", min:5, max:10, weight:1.74},
-{id:143, opened:true, nameZh:"卡坦島", nameEn:"Settlers of Catan", min:3, max:6, weight:2.29},
-{id:144, opened:true, nameZh:"暗影奇襲", nameEn:"Shadow Raiders", min:4, max:8, weight:1.67},
-{id:145, opened:true, nameZh:"骷髏王", nameEn:"Skull king", min:2, max:8, weight:1.72},
-{id:146, opened:true, nameZh:"殺戮尖塔", nameEn:"Slay the Spire", min:1, max:4, weight:2.94},
-{id:147, opened:true, nameZh:"小小世界", nameEn:"Small World", min:2, max:5, weight:2.35},
-{id:148, opened:false, nameZh:"密語幸運草", nameEn:"So Clover!", min:3, max:6, weight:1.11},
-{id:149, opened:false, nameZh:"御石仙人傳", nameEn:"Sorcerer & Stones", min:1, max:4, weight:2.5},
-{id:150, opened:true, nameZh:"太空基地", nameEn:"Space Base", min:2, max:5, weight:null},
-{id:151, opened:true, nameZh:"璀璨寶石 寶可夢", nameEn:"Splendor: Pokémon", min:2, max:4, weight:1.83},
-{id:152, opened:true, nameZh:"間諜危機", nameEn:"Spyfall", min:3, max:8, weight:1.23},
-{id:153, opened:true, nameZh:"蒸蒸日上", nameEn:"Steam Up: A Feast of Dim Sum", min:2, max:5, weight:1.61},
-{id:154, opened:false, nameZh:"極東之旅", nameEn:"Stroganov", min:1, max:4, weight:3.31},
-{id:155, opened:true, nameZh:"遠郊建城", nameEn:"Suburbia", min:1, max:4, weight:2.76},
-{id:156, opened:true, nameZh:"Sushi Go Party(英)", nameEn:"Sushi Go Party", min:2, max:8, weight:1.31},
-{id:157, opened:false, nameZh:"泰姬陵", nameEn:"Taj Mahal", min:2, max:5, weight:2.87},
-{id:158, opened:true, nameZh:"坦帕妮主題樂園", nameEn:"Tenpenny Parks", min:1, max:4, weight:2.14},
-{id:159, opened:true, nameZh:"地鐵終點站", nameEn:"Terminus", min:1, max:5, weight:3.62},
-{id:160, opened:true, nameZh:"神秘大地", nameEn:"Terra Mystica", min:2, max:5, weight:3.98},
-{id:161, opened:true, nameZh:"重塑火星", nameEn:"Terraforming Mars", min:1, max:5, weight:3.27},
-{id:162, opened:true, nameZh:"重塑火星: 阿瑞斯探險隊", nameEn:"Terraforming Mars: Ares Expedition", min:1, max:6, weight:2.92},
-{id:163, opened:true, nameZh:"骰築火星", nameEn:"Terraforming Mars: The Dice Game", min:1, max:4, weight:2.37},
-{id:164, opened:false, nameZh:"薩諾斯崛起(英)", nameEn:"Thanos Rising", min:2, max:4, weight:2},
-{id:165, opened:true, nameZh:"月神計劃", nameEn:"The Artemis Project", min:1, max:5, weight:2.85},
-{id:166, opened:true, nameZh:"風聲", nameEn:"The Message", min:3, max:9, weight:2.43},
-{id:167, opened:true, nameZh:"衝向黃金城", nameEn:"The Quest for El Dorado", min:2, max:4, weight:1.94},
-{id:168, opened:false, nameZh:"鐵道任務傳承", nameEn:"Ticket to Ride Legacy: Legends of the West", min:2, max:5, weight:2.59},
-{id:169, opened:true, nameZh:"鐵道任務 歐洲/日本", nameEn:"Ticket to Ride: Europe/Japan", min:2, max:5, weight:1.92},
-{id:170, opened:true, nameZh:"腦洞量表 (沒有下限)", nameEn:"Top Ten (18+)", min:4, max:9, weight:1.08},
-{id:171, opened:true, nameZh:"深淵之中", nameEn:"Unfathomable", min:3, max:6, weight:3.12},
-{id:172, opened:false, nameZh:"村民", nameEn:"Villagers", min:1, max:5, weight:2.22},
-{id:173, opened:true, nameZh:"病毒在跳舞", nameEn:"Virus", min:2, max:6, weight:null},
-{id:174, opened:true, nameZh:"飛塔巫師", nameEn:"Wandering Towers", min:2, max:6, weight:1.64},
-{id:175, opened:false, nameZh:"廢土快遞", nameEn:"Wasteland Express Delivery Service", min:2, max:5, weight:2.94},
-{id:176, opened:true, nameZh:"歡迎來到...", nameEn:"Welcome to...", min:1, max:100, weight:1.84},
-{id:177, opened:true, nameZh:"狼人真言", nameEn:"Werewords", min:4, max:10, weight:1.16},
-{id:178, opened:true, nameZh:"展翅翱翔", nameEn:"Wingspan", min:1, max:5, weight:2.47},
-{id:179, opened:false, nameZh:"World of warcraft", nameEn:"World of warcraft", min:2, max:4, weight:null},
-{id:180, opened:true, nameZh:"世界奇觀: 夢都", nameEn:"World Wonders: Mundo Wonders Pack", min:1, max:5, weight:2.38},
-{id:181, opened:true, nameZh:"黃牌", nameEn:"Yellow Card", min:2, max:100, weight:null},
-{id:182, opened:true, nameZh:"夜市人蔘", nameEn:"Yes! Ginseng", min:2, max:6, weight:1.33},
-{id:183, opened:true, nameZh:"侃侃而猜", nameEn:"Talk'n Guess", min:3, max:6, weight:null},
-{id:184, opened:false, nameZh:"暗影行動：阿姆斯特丹", nameEn:"Shadows: Amsterdam", min:2, max:8, weight:1.3},
-{id:185, opened:false, nameZh:"教父風雲：危情古巴", nameEn:"Mafia de Cuba", min:6, max:12, weight:1.48},
-{id:186, opened:false, nameZh:"人類毁滅計劃", nameEn:"Human Punishment: Social Deduction 2.0", min:4, max:16, weight:2.58},
-{id:187, opened:false, nameZh:"築地魚市", nameEn:"Tsukiji", min:2, max:4, weight:1.94},
-{id:188, opened:true, nameZh:"炸彈剋星", nameEn:"Bomb Busters", min:2, max:5, weight:1.94},
-{id:189, opened:false, nameZh:"方舟保護區", nameEn:"Sanctuary", min:1, max:5, weight:2.8},
-{id:190, opened:false, nameZh:"嗚嘎嘎建築師", nameEn:"Ugg-Tect", min:2, max:8, weight:1.19},
-{id:191, opened:true, nameZh:"我的捷運生活", nameEn:"My Metro Days", min:3, max:6, weight:null},
-{id:192, opened:false, nameZh:"沉睡的神祇", nameEn:"Sleeping Gods", min:1, max:4, weight:3.26},
-{id:193, opened:false, nameZh:"水族館: 海灘尋寶", nameEn:"Aqua Garden: Beach Combing", min:1, max:4, weight:2.6},
-{id:194, opened:true, nameZh:"搶答知識王", nameEn:"Bezzerwizzer", min:2, max:12, weight:null},
-{id:195, opened:false, nameZh:"同房異夢", nameEn:"Décorum", min:2, max:4, weight:2.02},
-{id:196, opened:false, nameZh:"托斯卡納城堡", nameEn:"Castles of Tuscany", min:2, max:4, weight:2.24},
-{id:197, opened:false, nameZh:"大不里士", nameEn:"Tabriz", min:1, max:5, weight:2.03},
-{id:198, opened:false, nameZh:"深入絕地(英)", nameEn:"Descent: Journeys in the Dark", min:1, max:5, weight:3.22},
-{id:199, opened:true, nameZh:"城市規劃師", nameEn:"City Connect", min:1, max:4, weight:null},
-{id:200, opened:false, nameZh:"德國蟑螂皇家版", nameEn:"Kakerlaken Poker Royal", min:2, max:6, weight:1.15},
-{id:201, opened:true, nameZh:"試過好遊戲", nameEn:"We Didn't Playtest This at All", min:2, max:10, weight:1.08},
-{id:203, opened:false, nameZh:"Hues and Cues", nameEn:"Hues and Cues", min:3, max:10, weight:1.06},
-{id:204, opened:false, nameZh:"極簡畫家", nameEn:"Pikto", min:3, max:6, weight:1},
-{id:205, opened:true, nameZh:"漫步彩色島", nameEn:"Walking in Burano", min:1, max:4, weight:1.97},
-{id:206, opened:true, nameZh:"迷你文明", nameEn:"CIV:Carta Impera Victoria", min:2, max:4, weight:2.06},
-{id:207, opened:false, nameZh:"忍者之夜", nameEn:"Night of the Ninja", min:4, max:11, weight:1.88},
-{id:208, opened:false, nameZh:"甜品學院", nameEn:"Dessert party", min:2, max:6, weight:null},
-{id:209, opened:false, nameZh:"我是香蕉", nameEn:"I am a banana", min:4, max:8, weight:1},
-{id:210, opened:false, nameZh:"貓咪比薩卷餅羊", nameEn:"Taco Cat Goat Cheese Pizza", min:2, max:8, weight:1.04},
-{id:211, opened:true, nameZh:"今晚要吃誰？", nameEn:"Who Should We Eat", min:4, max:10, weight:1.71},
-{id:212, opened:false, nameZh:"東京高速公路", nameEn:"Tokyo highway", min:2, max:2, weight:1.41},
-{id:213, opened:false, nameZh:"掘跡藍星", nameEn:"Excavation Earth", min:1, max:4, weight:3.8},
-{id:214, opened:true, nameZh:"光合作用", nameEn:"Photosynthesis", min:2, max:4, weight:2.06},
-{id:215, opened:false, nameZh:"骰子城", nameEn:"Dice City", min:1, max:4, weight:2.02},
-{id:216, opened:false, nameZh:"馬約利卡", nameEn:"Majolica", min:2, max:4, weight:null},
-{id:217, opened:false, nameZh:"股票大亨", nameEn:"Ka Ching!", min:2, max:4, weight:1.5},
-{id:218, opened:false, nameZh:"忙碌廚房", nameEn:"Kitchen Rush", min:2, max:4, weight:2.13},
-{id:219, opened:false, nameZh:"撰寫文明史(英)", nameEn:"CVlizations", min:2, max:5, weight:1.89},
-{id:220, opened:false, nameZh:"搗蛋派對", nameEn:"Crazy Eggz", min:2, max:4, weight:1},
-{id:221, opened:false, nameZh:"香港暢郵", nameEn:"Postman Delivery", min:2, max:4, weight:null},
-{id:222, opened:false, nameZh:"鐵道任務: 德國(英)", nameEn:"Ticket to Ride: Germany", min:2, max:5, weight:1.73},
-{id:223, opened:false, nameZh:"哈達拉", nameEn:"Hadara", min:2, max:5, weight:2.21},
-{id:224, opened:false, nameZh:"漫步普羅旺斯", nameEn:"Walking in Provence", min:2, max:5, weight:1.75},
-{id:225, opened:false, nameZh:"骰寫彩色島", nameEn:"Walking in Burano: Roll & Write", min:1, max:4, weight:null},
-{id:226, opened:false, nameZh:"三千世界鴉殺盡", nameEn:"Crows Overkill", min:2, max:4, weight:1.25},
-{id:227, opened:false, nameZh:"騙子酒吧", nameEn:"Liar's Bar", min:2, max:4, weight:null},
-{id:228, opened:false, nameZh:"疊牌大戰", nameEn:"Tacta", min:2, max:6, weight:1.39},
-{id:229, opened:false, nameZh:"摩天大樓", nameEn:"Go Town", min:2, max:4, weight:1.36},
-{id:230, opened:false, nameZh:"搖曳企鵝(日)", nameEn:"Yura Yura Penguin", min:2, max:6, weight:1},
-{id:231, opened:false, nameZh:"犯人在跳舞", nameEn:"Criminal Dance", min:3, max:6, weight:1.16},
-{id:232, opened:false, nameZh:"口袋建築大師", nameEn:"Pocket Master Builder", min:1, max:2, weight:null}
-    ];
+        let gamesData = [];
 
-    const gameGrid = document.getElementById('gameGrid');
-    const searchInput = document.getElementById('searchInput');
-    const playerInput = document.getElementById('playerInput');
-    const difficultySelect = document.getElementById('difficultySelect');
-    const statusSelect = document.getElementById('statusSelect');
-    const countDisplay = document.getElementById('countDisplay');
-
-    function renderGames() {
-        const searchText = searchInput.value.toLowerCase();
-        const players = parseInt(playerInput.value);
-        const difficulty = difficultySelect.value;
-        const status = statusSelect.value;
-
-        const filtered = gamesData.filter(game => {
-            // 文字搜尋
-            const matchText = game.nameZh.toLowerCase().includes(searchText) || 
-                              game.nameEn.toLowerCase().includes(searchText);
-            
-            // 人數篩選
-            let matchPlayers = true;
-            if (!isNaN(players)) {
-                matchPlayers = players >= game.min && players <= game.max;
+        // DOM 元素
+        const elements = {
+            grid: document.getElementById('gameGrid'),
+            empty: document.getElementById('emptyState'),
+            loading: document.getElementById('loading'),
+            controls: document.getElementById('controls'),
+            guide: document.getElementById('setupGuide'),
+            imageGuide: document.getElementById('imageGuide'),
+            count: document.getElementById('countDisplay'),
+            inputs: {
+                search: document.getElementById('searchInput'),
+                player: document.getElementById('playerInput'),
+                diff: document.getElementById('difficultySelect'),
+                status: document.getElementById('statusSelect')
             }
+        };
 
-            // 難度篩選
-            let matchDiff = true;
-            if (difficulty !== 'all') {
-                if (game.weight === null) {
-                    matchDiff = false;
-                } else {
-                    if (difficulty === 'easy') matchDiff = game.weight < 2.0;
-                    else if (difficulty === 'medium') matchDiff = game.weight >= 2.0 && game.weight < 3.0;
-                    else if (difficulty === 'hard') matchDiff = game.weight >= 3.0;
-                }
+        // 初始化
+        function init() {
+            if (!GOOGLE_SHEET_CSV_URL) {
+                elements.loading.classList.add('hidden');
+                elements.guide.classList.remove('hidden');
+                elements.controls.classList.remove('hidden');
+                
+                // 模擬有圖片的範例資料
+                gamesData = [
+                    {id:1, opened:true, nameZh:"範例：方舟動物園", nameEn:"Ark Nova (Example)", min:1, max:4, weight:3.78, image:"https://cf.geekdo-images.com/N8bL53-pRU7zaXDGFEaLtg__itemrep/img/q9sFq1B1sTce3k8tC2sT_jJjY2s=/fit-in/246x300/filters:strip_icc()/pic6293412.jpg"},
+                    {id:2, opened:false, nameZh:"範例：機密代號", nameEn:"Codenames (Example)", min:2, max:8, weight:1.3, image:""},
+                ];
+                renderGames();
+            } else {
+                fetchData();
             }
-
-            // 狀態篩選
-            let matchStatus = true;
-            if (status !== 'all') {
-                if (status === 'opened') matchStatus = game.opened === true;
-                if (status === 'new') matchStatus = game.opened === false;
-            }
-
-            return matchText && matchPlayers && matchDiff && matchStatus;
-        });
-
-        countDisplay.textContent = filtered.length;
-        gameGrid.innerHTML = '';
-
-        if (filtered.length === 0) {
-            gameGrid.innerHTML = '<div class="empty-state">沒有找到符合條件的桌遊 😅</div>';
-            return;
         }
 
-        filtered.forEach(game => {
-            const card = document.createElement('div');
-            card.className = 'game-card';
-            
-            // 難度顏色
-            let diffClass = 'diff-unknown';
-            let diffText = 'N/A';
-            if (game.weight !== null) {
-                diffText = game.weight.toFixed(2);
-                if (game.weight < 2.0) diffClass = 'diff-easy';
-                else if (game.weight < 3.0) diffClass = 'diff-medium';
-                else diffClass = 'diff-hard';
+        function fetchData() {
+            Papa.parse(GOOGLE_SHEET_CSV_URL, {
+                download: true,
+                header: true,
+                complete: function(results) {
+                    processData(results.data);
+                    elements.loading.classList.add('hidden');
+                    elements.controls.classList.remove('hidden');
+                    
+                    // 檢查是否有任何遊戲成功讀取到圖片欄位
+                    const hasImages = gamesData.some(g => g.image && g.image.length > 0);
+                    if (!hasImages && gamesData.length > 0) {
+                        elements.imageGuide.classList.remove('hidden');
+                    }
+
+                    renderGames();
+                },
+                error: function(err) {
+                    console.error("CSV 解析錯誤:", err);
+                    alert("讀取 Google Sheet 失敗。");
+                    elements.loading.classList.add('hidden');
+                }
+            });
+        }
+
+        function processData(rawData) {
+            gamesData = rawData
+                .filter(row => row['中文名稱'] && row['中文名稱'].trim() !== '')
+                .map(row => {
+                    let isOpened = false;
+                    const openedVal = String(row['已開']).toLowerCase().trim();
+                    if (openedVal === 'true' || openedVal === 'yes' || openedVal === '是') isOpened = true;
+
+                    const weight = parseFloat(row['BGG Difficulty']);
+                    
+                    // 嘗試讀取多種可能的圖片欄位名稱
+                    const imageUrl = row['圖片'] || row['Image'] || row['圖片連結'] || row['ImageURL'] || row['img'] || '';
+
+                    return {
+                        id: row['編號'],
+                        opened: isOpened,
+                        nameZh: row['中文名稱'],
+                        nameEn: row['英文名稱'] || '',
+                        min: parseInt(row['最少人數']) || 1,
+                        max: parseInt(row['最大人數']) || 99,
+                        weight: isNaN(weight) ? null : weight,
+                        image: imageUrl // 新增圖片欄位
+                    };
+                });
+        }
+
+        function renderGames() {
+            const searchText = elements.inputs.search.value.toLowerCase().trim();
+            const players = parseInt(elements.inputs.player.value);
+            const difficulty = elements.inputs.diff.value;
+            const status = elements.inputs.status.value;
+
+            const filtered = gamesData.filter(game => {
+                const matchText = (game.nameZh && game.nameZh.toLowerCase().includes(searchText)) || 
+                                  (game.nameEn && game.nameEn.toLowerCase().includes(searchText));
+                
+                let matchPlayers = true;
+                if (!isNaN(players)) {
+                    matchPlayers = players >= game.min && players <= game.max;
+                }
+
+                let matchDiff = true;
+                if (difficulty !== 'all') {
+                    if (game.weight === null) {
+                        matchDiff = false;
+                    } else {
+                        if (difficulty === 'easy') matchDiff = game.weight < 2.0;
+                        else if (difficulty === 'medium') matchDiff = game.weight >= 2.0 && game.weight < 3.0;
+                        else if (difficulty === 'hard') matchDiff = game.weight >= 3.0;
+                    }
+                }
+
+                let matchStatus = true;
+                if (status !== 'all') {
+                    if (status === 'opened') matchStatus = game.opened === true;
+                    if (status === 'new') matchStatus = game.opened === false;
+                }
+
+                return matchText && matchPlayers && matchDiff && matchStatus;
+            });
+
+            elements.count.textContent = filtered.length;
+            elements.grid.innerHTML = '';
+
+            if (filtered.length === 0) {
+                elements.grid.classList.add('hidden');
+                elements.empty.classList.remove('hidden');
+                return;
+            } else {
+                elements.grid.classList.remove('hidden');
+                elements.empty.classList.add('hidden');
             }
 
-            // 狀態標籤
-            const statusBadge = game.opened ? 
-                `<span class="status-badge status-opened">已拆封</span>` : 
-                `<span class="status-badge status-new">未拆封</span>`;
+            filtered.forEach(game => {
+                let diffBadgeClass = 'badge-unknown';
+                let diffText = 'N/A';
+                if (game.weight !== null) {
+                    diffText = game.weight.toFixed(2);
+                    if (game.weight < 2.0) diffBadgeClass = 'badge-easy';
+                    else if (game.weight < 3.0) diffBadgeClass = 'badge-medium';
+                    else diffBadgeClass = 'badge-hard';
+                }
 
-            // 邊框顏色根據難度
-            card.style.borderTopColor = game.weight < 2 ? '#27ae60' : (game.weight < 3 ? '#f39c12' : '#c0392b');
-            if(game.weight === null) card.style.borderTopColor = '#95a5a6';
+                const statusBadge = game.opened ? 
+                    `<span class="px-2 py-1 rounded text-xs font-bold status-opened">已拆封</span>` : 
+                    `<span class="px-2 py-1 rounded text-xs font-bold status-new">未拆封</span>`;
 
-            // Google 圖片搜尋連結
-            const searchUrl = `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(game.nameEn + " board game")}`;
+                const searchUrl = `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(game.nameEn + " board game")}`;
 
-            card.innerHTML = `
-                <div class="card-body">
-                    <div class="game-id">#${game.id}</div>
-                    ${statusBadge}
-                    <div class="game-title-zh">${game.nameZh}</div>
-                    <div class="game-title-en">${game.nameEn}</div>
-                    
-                    <div class="game-meta">
-                        <div class="meta-item" title="玩家人數">
-                            👥 ${game.min} - ${game.max} 人
+                // 圖片顯示邏輯：如果有網址就顯示圖片，否則顯示預設圖示
+                let imageHtml = '';
+                if (game.image && game.image.startsWith('http')) {
+                    imageHtml = `<img src="${game.image}" alt="${game.nameZh}" loading="lazy" onerror="this.onerror=null; this.parentNode.innerHTML='<i class=\'fa-solid fa-dice-d6 placeholder-icon\'></i>';">`;
+                } else {
+                    imageHtml = `<i class="fa-solid fa-dice-d20 placeholder-icon text-slate-300"></i>`;
+                }
+
+                const cardHTML = `
+                    <div class="game-card bg-white rounded-xl shadow border border-slate-100 overflow-hidden flex flex-col h-full relative">
+                        <!-- 狀態標籤 (浮動在右上角) -->
+                        <div class="absolute top-2 right-2 z-10">
+                            ${statusBadge}
                         </div>
-                        <div class="meta-item" title="BGG 難度 (Weight)">
-                            🧩 <span class="difficulty-badge ${diffClass}">${diffText}</span>
+
+                        <!-- 圖片區塊 -->
+                        <div class="img-container">
+                            ${imageHtml}
                         </div>
+
+                        <div class="p-4 flex-grow flex flex-col">
+                            <div class="mb-1 text-xs font-mono text-slate-400">#${game.id}</div>
+                            <h3 class="text-lg font-bold text-slate-800 leading-tight mb-1">${game.nameZh}</h3>
+                            <p class="text-sm text-slate-500 italic mb-4 line-clamp-1">${game.nameEn}</p>
+                            
+                            <div class="mt-auto flex flex-col gap-2">
+                                <div class="flex items-center text-sm text-slate-600 bg-slate-50 px-2 py-1.5 rounded">
+                                    <i class="fa-solid fa-users w-5 text-center text-slate-400 mr-2"></i>
+                                    <span class="font-medium">${game.min} - ${game.max} 人</span>
+                                </div>
+                                <div class="flex items-center text-sm text-slate-600 bg-slate-50 px-2 py-1.5 rounded">
+                                    <i class="fa-solid fa-brain w-5 text-center text-slate-400 mr-2"></i>
+                                    <div class="flex items-center gap-2">
+                                        <span>重策:</span>
+                                        <span class="px-2 py-0.5 rounded-full text-xs font-bold ${diffBadgeClass}">${diffText}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <a href="${searchUrl}" target="_blank" 
+                           class="block bg-slate-50 hover:bg-indigo-50 border-t border-slate-100 py-3 text-center text-sm font-semibold text-indigo-600 transition-colors group">
+                           <span class="group-hover:underline">🔍 搜尋介紹</span>
+                        </a>
                     </div>
-                </div>
-                <div class="card-footer">
-                    <a href="${searchUrl}" target="_blank" class="btn-search-img">🔍 查看圖片</a>
-                </div>
-            `;
-            gameGrid.appendChild(card);
+                `;
+                elements.grid.insertAdjacentHTML('beforeend', cardHTML);
+            });
+        }
+
+        // 綁定事件
+        Object.values(elements.inputs).forEach(input => {
+            input.addEventListener('input', renderGames);
+            input.addEventListener('change', renderGames);
         });
-    }
 
-    // 綁定事件
-    searchInput.addEventListener('input', renderGames);
-    playerInput.addEventListener('input', renderGames);
-    difficultySelect.addEventListener('change', renderGames);
-    statusSelect.addEventListener('change', renderGames);
-
-    // 初始渲染
-    renderGames();
-</script>
-
+        init();
+    </script>
 </body>
 </html>
