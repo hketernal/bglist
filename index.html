@@ -98,7 +98,7 @@
                 <i class="fa-solid fa-cloud-arrow-down text-3xl text-indigo-600"></i>
                 <div>
                     <h1 class="text-2xl font-bold text-slate-800">Boardgaholic桌遊列表</h1>
-                    <p class="text-xs text-slate-500">資料來源: Google Sheet</p>
+                    <p class="text-xs text-slate-500">資料來源: Google Sheet + Local Images</p>
                 </div>
             </div>
             <div class="text-sm text-slate-500 font-medium">
@@ -122,13 +122,14 @@
             </div>
         </div>
 
-        <div id="imageGuide" class="hidden bg-blue-50 border-l-4 border-blue-400 p-4 mb-8">
+        <!-- 圖片教學提示 -->
+        <div id="imageGuide" class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-8">
             <div class="flex">
-                <div class="flex-shrink-0"><i class="fa-solid fa-image text-blue-400"></i></div>
+                <div class="flex-shrink-0"><i class="fa-solid fa-folder-open text-blue-400"></i></div>
                 <div class="ml-3">
-                    <h3 class="text-sm font-medium text-blue-800">小提示</h3>
+                    <h3 class="text-sm font-medium text-blue-800">如何顯示圖片？</h3>
                     <div class="mt-2 text-sm text-blue-700">
-                        <p>在 Google Sheet 新增「圖片」欄位並貼上網址，即可顯示封面圖。</p>
+                        <p>請在根目錄建立 <strong>pic</strong> 資料夾，並將圖片命名為 <strong>[編號].jpg</strong> (例如: <code>pic/1.jpg</code>)。</p>
                     </div>
                 </div>
             </div>
@@ -289,7 +290,7 @@
                 elements.controls.classList.remove('hidden');
                 // 模擬資料 (生成45個測試分頁效果)
                 gamesData = Array.from({length: 45}, (_, i) => ({
-                    id: i+1, opened: i%2===0, nameZh:`測試遊戲 ${i+1}`, nameEn:`Test Game ${i+1}`, min:2, max:4, weight: 1.0 + (i%3), image:""
+                    id: i+1, opened: i%2===0, nameZh:`測試遊戲 ${i+1}`, nameEn:`Test Game ${i+1}`, min:2, max:4, weight: 1.0 + (i%3)
                 }));
                 applyFilters();
             } else {
@@ -305,12 +306,7 @@
                     processData(results.data);
                     elements.loading.classList.add('hidden');
                     elements.controls.classList.remove('hidden');
-                    
-                    const hasImages = gamesData.some(g => g.image && g.image.length > 0);
-                    if (!hasImages && gamesData.length > 0) {
-                        elements.imageGuide.classList.remove('hidden');
-                    }
-
+                    // 移除圖片檢查，因為現在是讀取本地，無法預先知道是否有圖片
                     applyFilters();
                 },
                 error: function(err) {
@@ -330,8 +326,8 @@
                     if (openedVal === 'true' || openedVal === 'yes' || openedVal === '是') isOpened = true;
 
                     const weight = parseFloat(row['BGG Difficulty']);
-                    const imageUrl = row['圖片'] || row['Image'] || row['圖片連結'] || row['ImageURL'] || row['img'] || '';
-
+                    
+                    // 不再從 CSV 讀取圖片欄位，而是直接使用編號
                     return {
                         id: row['編號'],
                         opened: isOpened,
@@ -339,8 +335,7 @@
                         nameEn: row['英文名稱'] || '',
                         min: parseInt(row['最少人數']) || 1,
                         max: parseInt(row['最大人數']) || 99,
-                        weight: isNaN(weight) ? null : weight,
-                        image: imageUrl
+                        weight: isNaN(weight) ? null : weight
                     };
                 });
         }
@@ -427,12 +422,17 @@
 
                 const searchUrl = `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(game.nameEn + " board game")}`;
 
-                let imageHtml = '';
-                if (game.image && game.image.startsWith('http')) {
-                    imageHtml = `<img src="${game.image}" alt="${game.nameZh}" loading="lazy" onerror="this.onerror=null; this.parentNode.innerHTML='<i class=\'fa-solid fa-dice-d6 placeholder-icon\'></i>';">`;
-                } else {
-                    imageHtml = `<i class="fa-solid fa-dice-d20 placeholder-icon text-slate-300"></i>`;
-                }
+                // --- 圖片讀取邏輯更新 ---
+                // 直接指定 pic 資料夾路徑，使用遊戲 ID 命名
+                const localImagePath = `pic/${game.id}.jpg`;
+                
+                // 圖片標籤: 預設載入 localImagePath，如果失敗(onerror)則顯示圖示
+                const imageHtml = `
+                    <img src="${localImagePath}" 
+                         alt="${game.nameZh}" 
+                         loading="lazy" 
+                         onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\'fa-solid fa-dice-d6 placeholder-icon\'></i>';">
+                `;
 
                 const cardHTML = `
                     <div class="game-card bg-white rounded-xl shadow border border-slate-100 overflow-hidden flex flex-col h-full relative">
