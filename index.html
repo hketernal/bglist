@@ -35,24 +35,35 @@
             width: 100%;
             height: 160px;
             background-color: #f8fafc;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            /* 修正：使用相對定位，讓內部的絕對定位元素(icon)可以居中 */
+            position: relative;
             overflow: hidden;
             border-bottom: 1px solid #e2e8f0;
-            position: relative;
         }
-        .img-container img {
+        
+        /* 圖片樣式 */
+        .game-img {
             width: 100%;
             height: 100%;
             object-fit: cover;
+            position: relative;
+            z-index: 10; /* 確保圖片在圖示上面 */
             transition: transform 0.5s ease;
         }
-        .game-card:hover .img-container img {
+        .game-card:hover .game-img {
             transform: scale(1.05);
         }
-        
-        .placeholder-icon { font-size: 3rem; color: #cbd5e1; }
+
+        /* 預設圖示 (墊在圖片下面) */
+        .placeholder-icon { 
+            font-size: 3rem; 
+            color: #cbd5e1;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1; /* 在圖片下面 */
+        }
 
         .loader {
             border: 4px solid #f3f3f3;
@@ -129,7 +140,7 @@
                 <div class="ml-3">
                     <h3 class="text-sm font-medium text-blue-800">如何顯示圖片？</h3>
                     <div class="mt-2 text-sm text-blue-700">
-                        <p>請在根目錄建立 <strong>pic</strong> 資料夾，並將圖片命名為 <strong>[編號].jpg</strong> (例如: <code>pic/1.jpg</code>)。</p>
+                        <p>請在根目錄建立 <strong>pic</strong> 資料夾，並將圖片命名為 <strong>[編號].jpg</strong> (例如: <code>pic/1.jpg</code>)。<br>如果還沒上傳圖片，系統會自動顯示預設圖示，不會破圖。</p>
                     </div>
                 </div>
             </div>
@@ -188,7 +199,7 @@
             </div>
         </div>
 
-        <!-- 分頁控制 (頂部) -->
+        <!-- 分頁控制 (頂部 - 置中) -->
         <div id="paginationTop" class="hidden mb-6 flex justify-center items-center gap-4">
             <button id="prevBtnTop" class="page-btn">
                 <i class="fa-solid fa-chevron-left text-xs"></i> 上一頁
@@ -306,7 +317,6 @@
                     processData(results.data);
                     elements.loading.classList.add('hidden');
                     elements.controls.classList.remove('hidden');
-                    // 移除圖片檢查，因為現在是讀取本地，無法預先知道是否有圖片
                     applyFilters();
                 },
                 error: function(err) {
@@ -327,7 +337,6 @@
 
                     const weight = parseFloat(row['BGG Difficulty']);
                     
-                    // 不再從 CSV 讀取圖片欄位，而是直接使用編號
                     return {
                         id: row['編號'],
                         opened: isOpened,
@@ -422,21 +431,25 @@
 
                 const searchUrl = `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(game.nameEn + " board game")}`;
 
-                // --- 圖片讀取邏輯更新 ---
-                // 直接指定 pic 資料夾路徑，使用遊戲 ID 命名
+                // --- 修正後的圖片邏輯 ---
                 const localImagePath = `pic/${game.id}.jpg`;
                 
-                // 圖片標籤: 預設載入 localImagePath，如果失敗(onerror)則顯示圖示
+                // 這裡我們同時產生 Icon 和 Image
+                // Icon 絕對定位在中間 (z-index: 1)
+                // Image 相對定位蓋在上面 (z-index: 10)
+                // 如果 Image 讀取失敗，onerror 會將其隱藏 (display: none)，露出底下的 Icon
                 const imageHtml = `
+                    <i class="fa-solid fa-dice-d20 placeholder-icon"></i>
                     <img src="${localImagePath}" 
                          alt="${game.nameZh}" 
+                         class="game-img"
                          loading="lazy" 
-                         onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\'fa-solid fa-dice-d6 placeholder-icon\'></i>';">
+                         onerror="this.style.display='none'">
                 `;
 
                 const cardHTML = `
                     <div class="game-card bg-white rounded-xl shadow border border-slate-100 overflow-hidden flex flex-col h-full relative">
-                        <div class="absolute top-2 right-2 z-10">${statusBadge}</div>
+                        <div class="absolute top-2 right-2 z-20">${statusBadge}</div>
                         <div class="img-container">${imageHtml}</div>
                         <div class="p-4 flex-grow flex flex-col">
                             <div class="mb-1 text-xs font-mono text-slate-400">#${game.id}</div>
