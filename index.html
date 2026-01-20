@@ -31,14 +31,14 @@
         .status-opened { background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
         .status-new { background-color: #fce7f3; color: #be185d; border: 1px solid #fbcfe8; }
 
-        /* 圖片容器 - 改為左側佈局 */
+        /* 圖片容器 - 左側佈局 */
         .img-container {
             width: 120px; /* 固定寬度 */
             min-width: 120px;
             background-color: #f8fafc;
             position: relative;
             overflow: hidden;
-            border-right: 1px solid #e2e8f0; /* 改為右邊框 */
+            border-right: 1px solid #e2e8f0;
         }
         
         /* 圖片樣式 */
@@ -157,6 +157,19 @@
             </div>
         </div>
 
+        <!-- 圖片教學提示 -->
+        <div id="imageGuide" class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-8">
+            <div class="flex">
+                <div class="flex-shrink-0"><i class="fa-solid fa-folder-open text-blue-400"></i></div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-blue-800">如何顯示圖片？</h3>
+                    <div class="mt-2 text-sm text-blue-700">
+                        <p>請在根目錄建立 <strong>pic</strong> 資料夾，並將圖片命名為 <strong>[編號].jpg</strong> (例如: <code>pic/1.jpg</code>)。<br>如果還沒上傳圖片，系統會自動顯示預設圖示，不會破圖。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 載入中 -->
         <div id="loading" class="flex flex-col items-center justify-center py-20">
             <div class="loader mb-4"></div>
@@ -215,7 +228,7 @@
             <!-- JS 動態生成 -->
         </div>
 
-        <!-- 遊戲列表網格 (改為 1列/2列/3列) -->
+        <!-- 遊戲列表網格 -->
         <div id="gameGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-h-[200px]">
             <!-- JS 將在此處插入卡片 -->
         </div>
@@ -396,7 +409,9 @@
                     `<span class="px-2 py-0.5 rounded text-xs font-bold status-opened">已遊玩</span>` : 
                     `<span class="px-2 py-0.5 rounded text-xs font-bold status-new">未遊玩</span>`;
 
-                const searchUrl = `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(game.nameEn + " board game")}`;
+                // 修改：使用一般 Google 搜尋，而非圖片搜尋 (tbm=isch 移除)
+                const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(game.nameEn + " board game")}`;
+                
                 const localImagePath = `pic/${game.id}.jpg`;
                 
                 const imageHtml = `
@@ -408,7 +423,6 @@
                          onerror="this.style.display='none'">
                 `;
 
-                // Layout changed to flex-row (Left Image, Right Content)
                 const cardHTML = `
                     <div class="game-card bg-white rounded-xl shadow border border-slate-100 overflow-hidden flex flex-row h-[160px] relative group cursor-pointer" onclick="window.open('${searchUrl}', '_blank')">
                         <div class="img-container">
@@ -437,18 +451,15 @@
                             </div>
                         </div>
                         
-                        <!-- Hover hint -->
                         <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-5 transition-all pointer-events-none"></div>
                     </div>
                 `;
                 elements.grid.insertAdjacentHTML('beforeend', cardHTML);
             });
 
-            // 渲染新的數字分頁
             renderPaginationControls(totalPages);
         }
 
-        // --- 數字分頁核心邏輯 ---
         function renderPaginationControls(totalPages) {
             if (totalPages <= 1) {
                 elements.paginationTop.classList.add('hidden');
@@ -463,29 +474,24 @@
             elements.paginationTop.innerHTML = paginationHTML;
             elements.paginationBottom.innerHTML = paginationHTML;
 
-            // 重新綁定事件
             bindPaginationEvents();
         }
 
         function generateSmartPaginationHTML(totalPages) {
             let btns = '';
             
-            // 上一頁按鈕
             btns += `<button class="page-btn prev-btn" ${currentPage === 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left"></i></button>`;
 
-            // 計算要顯示的頁碼
-            const delta = 1; // 當前頁碼前後顯示幾個
+            const delta = 1;
             const range = [];
             const rangeWithDots = [];
 
             for (let i = 1; i <= totalPages; i++) {
-                // 顯示規則：第1頁、最後一頁、當前頁面附近(delta)
                 if (i === 1 || i === totalPages || (i >= currentPage - delta && i <= currentPage + delta)) {
                     range.push(i);
                 }
             }
 
-            // 加上省略號
             let l;
             for (let i of range) {
                 if (l) {
@@ -499,7 +505,6 @@
                 l = i;
             }
 
-            // 生成 HTML
             for (let item of rangeWithDots) {
                 if (item === '...') {
                     btns += `<span class="page-dots">...</span>`;
@@ -509,14 +514,12 @@
                 }
             }
 
-            // 下一頁按鈕
             btns += `<button class="page-btn next-btn" ${currentPage === totalPages ? 'disabled' : ''}><i class="fa-solid fa-chevron-right"></i></button>`;
 
             return btns;
         }
 
         function bindPaginationEvents() {
-            // 綁定數字按鈕
             document.querySelectorAll('.num-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const page = parseInt(e.target.dataset.page);
@@ -528,7 +531,6 @@
                 });
             });
 
-            // 綁定上下頁按鈕
             document.querySelectorAll('.prev-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     if (currentPage > 1) {
@@ -555,7 +557,6 @@
             elements.controls.scrollIntoView({ behavior: 'smooth' });
         }
 
-        // 綁定篩選事件
         Object.values(elements.inputs).forEach(input => {
             input.addEventListener('input', applyFilters);
             input.addEventListener('change', applyFilters);
