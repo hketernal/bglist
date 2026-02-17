@@ -130,10 +130,14 @@
     <header class="bg-white shadow-sm sticky top-0 z-30">
         <div class="container mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-3">
-                <i class="fa-solid fa-cloud-arrow-down text-3xl text-indigo-600"></i>
-                <div>
+                <!-- LOGO 圖片區塊 -->
+                <img src="logo.jpg" alt="Boardgaholic Logo" class="h-12 w-auto object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <!-- 預設 Logo (如果 logo.jpg 讀取失敗時顯示) -->
+                <i class="fa-solid fa-dice-d20 text-4xl text-indigo-600 hidden"></i>
+                
+                <div class="ml-2">
                     <h1 class="text-2xl font-bold text-slate-800">Boardgaholic桌遊列表</h1>
-                    <p class="text-xs text-slate-500">資料來源: Google Sheet + Local Images</p>
+                    <p class="text-xs text-slate-500">資料來源: 網絡圖片</p>
                 </div>
             </div>
             <div class="text-sm text-slate-500 font-medium">
@@ -553,4 +557,3 @@
     </script>
 </body>
 </html>
-
