@@ -123,6 +123,51 @@
             color: #94a3b8;
             padding: 0 0.25rem;
         }
+
+        /* 頁碼下拉選單樣式 */
+        .page-select {
+            height: 2.5rem;
+            padding: 0 2rem 0 0.75rem;
+            border-radius: 0.375rem;
+            border: 1px solid #e2e8f0;
+            background-color: white;
+            color: #64748b;
+            font-size: 0.875rem;
+            cursor: pointer;
+            margin-left: 0.5rem;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+        }
+        .page-select:focus {
+            outline: none;
+            border-color: #4f46e5;
+            ring: 2px solid #4f46e5;
+        }
+
+        /* 隨機按鈕樣式 */
+        .sort-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+        .sort-btn.random {
+            background-color: #f0fdf4;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+        .sort-btn.sequential {
+            background-color: #f8fafc;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen pb-10">
@@ -137,7 +182,7 @@
                 
                 <div class="ml-2">
                     <h1 class="text-2xl font-bold text-slate-800">Boardgaholic桌遊列表</h1>
-                    <p class="text-xs text-slate-500">資料來源: 網絡圖片</p>
+                    <p class="text-xs text-slate-500">圖片來源: 網絡</p>
                 </div>
             </div>
             <div class="text-sm text-slate-500 font-medium">
@@ -169,6 +214,13 @@
 
         <!-- 控制面板 -->
         <div id="controls" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8">
+            <!-- 排序按鈕列 -->
+            <div class="flex justify-end mb-4 border-b border-slate-100 pb-4">
+                <button id="sortToggleBtn" class="sort-btn random">
+                    <i class="fa-solid fa-shuffle"></i> <span>目前：隨機顯示</span>
+                </button>
+            </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <!-- 搜尋 -->
                 <div class="relative group">
@@ -177,6 +229,7 @@
                         <input type="text" id="searchInput" class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" placeholder="輸入中文或英文...">
                         <i class="fa-solid fa-search absolute left-3 top-3 text-slate-400"></i>
                     </div>
+                    <p class="text-[10px] text-slate-400 mt-1 ml-1">*搜尋時自動切換為序號排列</p>
                 </div>
                 <!-- 人數 -->
                 <div>
@@ -251,6 +304,7 @@
         let gamesData = [];
         let currentPage = 1;
         let filteredGames = []; // 儲存篩選後的結果
+        let isRandomMode = true; // 預設為隨機模式
 
         // DOM 元素
         const elements = {
@@ -263,6 +317,7 @@
             count: document.getElementById('countDisplay'),
             paginationTop: document.getElementById('paginationTop'),
             paginationBottom: document.getElementById('paginationBottom'),
+            sortBtn: document.getElementById('sortToggleBtn'),
             inputs: {
                 search: document.getElementById('searchInput'),
                 player: document.getElementById('playerInput'),
@@ -284,6 +339,7 @@
             } else {
                 fetchData();
             }
+            updateSortButtonUI();
         }
 
         function fetchData() {
@@ -315,7 +371,7 @@
                     const weight = parseFloat(row['BGG Difficulty']);
                     
                     return {
-                        id: row['編號'],
+                        id: parseInt(row['編號']) || 0, // 確保 ID 是數字以便排序
                         opened: isOpened,
                         nameZh: row['中文名稱'],
                         nameEn: row['英文名稱'] || '',
@@ -326,13 +382,42 @@
                 });
         }
 
+        // Fisher-Yates 洗牌演算法
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function toggleSortMode() {
+            isRandomMode = !isRandomMode;
+            updateSortButtonUI();
+            applyFilters(); // 重新過濾並排序
+        }
+
+        function updateSortButtonUI() {
+            const btn = elements.sortBtn;
+            if (isRandomMode) {
+                btn.innerHTML = '<i class="fa-solid fa-shuffle"></i> <span>目前：隨機顯示</span>';
+                btn.classList.remove('sequential');
+                btn.classList.add('random');
+            } else {
+                btn.innerHTML = '<i class="fa-solid fa-arrow-down-1-9"></i> <span>目前：序號排列</span>';
+                btn.classList.remove('random');
+                btn.classList.add('sequential');
+            }
+        }
+
         function applyFilters() {
             const searchText = elements.inputs.search.value.toLowerCase().trim();
             const players = parseInt(elements.inputs.player.value);
             const difficulty = elements.inputs.diff.value;
             const status = elements.inputs.status.value;
 
-            filteredGames = gamesData.filter(game => {
+            // 1. 先進行篩選
+            let tempGames = gamesData.filter(game => {
                 const matchText = (game.nameZh && game.nameZh.toLowerCase().includes(searchText)) || 
                                   (game.nameEn && game.nameEn.toLowerCase().includes(searchText));
                 
@@ -361,6 +446,21 @@
                 return matchText && matchPlayers && matchDiff && matchStatus;
             });
 
+            // 2. 處理排序邏輯
+            // 如果正在搜尋 (searchText不為空)，強制使用 ID 排序
+            if (searchText.length > 0) {
+                tempGames.sort((a, b) => a.id - b.id);
+            } 
+            // 如果沒有搜尋，依據 isRandomMode 決定
+            else if (isRandomMode) {
+                // 如果是隨機模式，進行洗牌
+                shuffleArray(tempGames);
+            } else {
+                // 如果是序號模式，按 ID 排序
+                tempGames.sort((a, b) => a.id - b.id);
+            }
+
+            filteredGames = tempGames;
             currentPage = 1;
             renderPage();
         }
@@ -400,7 +500,6 @@
                     `<span class="px-2 py-0.5 rounded text-xs font-bold status-opened">已遊玩</span>` : 
                     `<span class="px-2 py-0.5 rounded text-xs font-bold status-new">未遊玩</span>`;
 
-                // 修改：使用一般 Google 搜尋，而非圖片搜尋 (tbm=isch 移除)
                 const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(game.nameEn + " board game")}`;
                 
                 const localImagePath = `pic/${game.id}.jpg`;
@@ -469,10 +568,12 @@
         }
 
         function generateSmartPaginationHTML(totalPages) {
-            let btns = '';
+            let html = '';
             
-            btns += `<button class="page-btn prev-btn" ${currentPage === 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left"></i></button>`;
+            // 上一頁
+            html += `<button class="page-btn prev-btn" ${currentPage === 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left"></i></button>`;
 
+            // 數字按鈕邏輯
             const delta = 1;
             const range = [];
             const rangeWithDots = [];
@@ -498,19 +599,28 @@
 
             for (let item of rangeWithDots) {
                 if (item === '...') {
-                    btns += `<span class="page-dots">...</span>`;
+                    html += `<span class="page-dots">...</span>`;
                 } else {
                     const activeClass = item === currentPage ? 'active' : '';
-                    btns += `<button class="page-btn num-btn ${activeClass}" data-page="${item}">${item}</button>`;
+                    html += `<button class="page-btn num-btn ${activeClass}" data-page="${item}">${item}</button>`;
                 }
             }
 
-            btns += `<button class="page-btn next-btn" ${currentPage === totalPages ? 'disabled' : ''}><i class="fa-solid fa-chevron-right"></i></button>`;
+            // 下一頁
+            html += `<button class="page-btn next-btn" ${currentPage === totalPages ? 'disabled' : ''}><i class="fa-solid fa-chevron-right"></i></button>`;
 
-            return btns;
+            // 下拉式跳頁選單
+            html += `<select class="page-select jump-select">`;
+            for(let i=1; i<=totalPages; i++) {
+                html += `<option value="${i}" ${i === currentPage ? 'selected' : ''}>第 ${i} 頁</option>`;
+            }
+            html += `</select>`;
+
+            return html;
         }
 
         function bindPaginationEvents() {
+            // 數字按鈕
             document.querySelectorAll('.num-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const page = parseInt(e.target.dataset.page);
@@ -522,6 +632,7 @@
                 });
             });
 
+            // 上一頁
             document.querySelectorAll('.prev-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     if (currentPage > 1) {
@@ -532,6 +643,7 @@
                 });
             });
 
+            // 下一頁
             document.querySelectorAll('.next-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const totalPages = Math.ceil(filteredGames.length / ITEMS_PER_PAGE);
@@ -542,16 +654,29 @@
                     }
                 });
             });
+
+            // 跳頁下拉選單
+            document.querySelectorAll('.jump-select').forEach(select => {
+                select.addEventListener('change', (e) => {
+                    currentPage = parseInt(e.target.value);
+                    renderPage();
+                    scrollToTop();
+                });
+            });
         }
 
         function scrollToTop() {
             elements.controls.scrollIntoView({ behavior: 'smooth' });
         }
 
+        // 綁定篩選事件
         Object.values(elements.inputs).forEach(input => {
             input.addEventListener('input', applyFilters);
             input.addEventListener('change', applyFilters);
         });
+
+        // 綁定排序按鈕
+        elements.sortBtn.addEventListener('click', toggleSortMode);
 
         init();
     </script>
