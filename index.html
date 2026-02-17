@@ -182,7 +182,7 @@
                 
                 <div class="ml-2">
                     <h1 class="text-2xl font-bold text-slate-800">Boardgaholic桌遊列表</h1>
-                    <p class="text-xs text-slate-500">圖片來源: 網絡</p>
+                    <p class="text-xs text-slate-500">資料來源: 網絡</p>
                 </div>
             </div>
             <div class="text-sm text-slate-500 font-medium">
@@ -331,9 +331,10 @@
                 elements.loading.classList.add('hidden');
                 elements.guide.classList.remove('hidden');
                 elements.controls.classList.remove('hidden');
-                // 模擬大量資料以測試分頁
+                // 模擬資料以測試分頁 (包含文字ID)
                 gamesData = Array.from({length: 250}, (_, i) => ({
-                    id: i+1, opened: i%2===0, nameZh:`測試遊戲 ${i+1}`, nameEn:`Test Game ${i+1}`, min:2, max:4, weight: 1.0 + (i%3)
+                    id: (i % 10 === 0) ? `${i}A` : `${i+1}`, // 測試: 10A, 20A...
+                    opened: i%2===0, nameZh:`測試遊戲 ${i+1}`, nameEn:`Test Game ${i+1}`, min:2, max:4, weight: 1.0 + (i%3)
                 }));
                 applyFilters();
             } else {
@@ -370,8 +371,10 @@
 
                     const weight = parseFloat(row['BGG Difficulty']);
                     
+                    // 修正：不使用 parseInt，而是保留原始字串並去除空白
+                    // 這樣 143A 就不會變成 143
                     return {
-                        id: parseInt(row['編號']) || 0, // 確保 ID 是數字以便排序
+                        id: row['編號'] ? row['編號'].trim() : '', 
                         opened: isOpened,
                         nameZh: row['中文名稱'],
                         nameEn: row['英文名稱'] || '',
@@ -447,17 +450,23 @@
             });
 
             // 2. 處理排序邏輯
+            // 自然排序比較器 (Natural Sort Comparator)
+            // 這能讓 "2" 排在 "10" 前面，"143" 排在 "143A" 前面
+            const naturalSort = (a, b) => {
+                return a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' });
+            };
+
             // 如果正在搜尋 (searchText不為空)，強制使用 ID 排序
             if (searchText.length > 0) {
-                tempGames.sort((a, b) => a.id - b.id);
+                tempGames.sort(naturalSort);
             } 
             // 如果沒有搜尋，依據 isRandomMode 決定
             else if (isRandomMode) {
                 // 如果是隨機模式，進行洗牌
                 shuffleArray(tempGames);
             } else {
-                // 如果是序號模式，按 ID 排序
-                tempGames.sort((a, b) => a.id - b.id);
+                // 如果是序號模式，按 ID 自然排序
+                tempGames.sort(naturalSort);
             }
 
             filteredGames = tempGames;
