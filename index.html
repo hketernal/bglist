@@ -10,6 +10,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <!-- PapaParse: CSV 解析 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    
     <style>
         html { scroll-behavior: smooth; }
         ::-webkit-scrollbar { width: 8px; }
@@ -50,7 +51,9 @@
             z-index: 10;
             transition: transform 0.5s ease;
         }
-        .game-card:hover .game-img {
+        
+        /* 若卡片未被遮罩（未外借），才啟用圖片放大效果 */
+        .game-card:not(.is-borrowed):hover .game-img {
             transform: scale(1.05);
         }
 
@@ -65,6 +68,7 @@
             z-index: 1;
         }
 
+        /* 載入動畫 */
         .loader {
             border: 4px solid #f3f3f3;
             border-top: 4px solid #4f46e5;
@@ -221,7 +225,8 @@
                 </button>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <!-- 控制面板的格狀佈局已更新為5欄，以容納新的篩選器 -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 lg:gap-6">
                 <!-- 搜尋 -->
                 <div class="relative group">
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">🔍 搜尋名稱</label>
@@ -262,6 +267,18 @@
                             <option value="new">🔒 未遊玩</option>
                         </select>
                         <i class="fa-solid fa-box absolute left-3 top-3 text-slate-400"></i>
+                    </div>
+                </div>
+                <!-- 外借狀態 (新增) -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">🤝 外借狀態</label>
+                    <div class="relative">
+                        <select id="borrowSelect" class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none cursor-pointer transition-all">
+                            <option value="all">全部狀態</option>
+                            <option value="in_stock">🏠 庫存中</option>
+                            <option value="borrowed">📤 已外借</option>
+                        </select>
+                        <i class="fa-solid fa-handshake absolute left-3 top-3 text-slate-400"></i>
                     </div>
                 </div>
             </div>
@@ -313,7 +330,6 @@
             loading: document.getElementById('loading'),
             controls: document.getElementById('controls'),
             guide: document.getElementById('setupGuide'),
-            imageGuide: document.getElementById('imageGuide'),
             count: document.getElementById('countDisplay'),
             paginationTop: document.getElementById('paginationTop'),
             paginationBottom: document.getElementById('paginationBottom'),
@@ -322,7 +338,8 @@
                 search: document.getElementById('searchInput'),
                 player: document.getElementById('playerInput'),
                 diff: document.getElementById('difficultySelect'),
-                status: document.getElementById('statusSelect')
+                status: document.getElementById('statusSelect'),
+                borrow: document.getElementById('borrowSelect') // 新增外借狀態輸入框
             }
         };
 
@@ -331,10 +348,16 @@
                 elements.loading.classList.add('hidden');
                 elements.guide.classList.remove('hidden');
                 elements.controls.classList.remove('hidden');
-                // 模擬資料以測試分頁 (包含文字ID)
+                // 模擬資料以測試分頁 (包含文字ID與外借狀態)
                 gamesData = Array.from({length: 250}, (_, i) => ({
-                    id: (i % 10 === 0) ? `${i}A` : `${i+1}`, // 測試: 10A, 20A...
-                    opened: i%2===0, nameZh:`測試遊戲 ${i+1}`, nameEn:`Test Game ${i+1}`, min:2, max:4, weight: 1.0 + (i%3)
+                    id: (i % 10 === 0) ? `${i}A` : `${i+1}`, 
+                    opened: i % 2 === 0, 
+                    borrowed: i % 7 === 0, // 測試資料：每7款有1款外借
+                    nameZh:`測試遊戲 ${i+1}`, 
+                    nameEn:`Test Game ${i+1}`, 
+                    min:2, 
+                    max:4, 
+                    weight: 1.0 + (i%3)
                 }));
                 applyFilters();
             } else {
@@ -369,13 +392,20 @@
                     const openedVal = String(row['已開']).toLowerCase().trim();
                     if (openedVal === 'true' || openedVal === 'yes' || openedVal === '是') isOpened = true;
 
+                    // 新增：解析「已外借」狀態 (若 CSV 有名為「已外借」的欄位)
+                    let isBorrowed = false;
+                    const borrowedCol = row['已外借'] || row['外借狀態'] || row['外借']; // 嘗試適配多種可能名稱
+                    if (borrowedCol) {
+                        const borrowedVal = String(borrowedCol).toLowerCase().trim();
+                        if (borrowedVal === 'true' || borrowedVal === 'yes' || borrowedVal === '是') isBorrowed = true;
+                    }
+
                     const weight = parseFloat(row['BGG Difficulty']);
                     
-                    // 修正：不使用 parseInt，而是保留原始字串並去除空白
-                    // 這樣 143A 就不會變成 143
                     return {
                         id: row['編號'] ? row['編號'].trim() : '', 
                         opened: isOpened,
+                        borrowed: isBorrowed,
                         nameZh: row['中文名稱'],
                         nameEn: row['英文名稱'] || '',
                         min: parseInt(row['最少人數']) || 1,
@@ -418,6 +448,7 @@
             const players = parseInt(elements.inputs.player.value);
             const difficulty = elements.inputs.diff.value;
             const status = elements.inputs.status.value;
+            const borrowStatus = elements.inputs.borrow.value; // 獲取外借篩選值
 
             // 1. 先進行篩選
             let tempGames = gamesData.filter(game => {
@@ -446,12 +477,17 @@
                     if (status === 'new') matchStatus = game.opened === false;
                 }
 
-                return matchText && matchPlayers && matchDiff && matchStatus;
+                // 新增外借狀態篩選邏輯
+                let matchBorrow = true;
+                if (borrowStatus !== 'all') {
+                    if (borrowStatus === 'borrowed') matchBorrow = game.borrowed === true;
+                    if (borrowStatus === 'in_stock') matchBorrow = game.borrowed === false;
+                }
+
+                return matchText && matchPlayers && matchDiff && matchStatus && matchBorrow;
             });
 
             // 2. 處理排序邏輯
-            // 自然排序比較器 (Natural Sort Comparator)
-            // 這能讓 "2" 排在 "10" 前面，"143" 排在 "143A" 前面
             const naturalSort = (a, b) => {
                 return a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' });
             };
@@ -462,10 +498,8 @@
             } 
             // 如果沒有搜尋，依據 isRandomMode 決定
             else if (isRandomMode) {
-                // 如果是隨機模式，進行洗牌
                 shuffleArray(tempGames);
             } else {
-                // 如果是序號模式，按 ID 自然排序
                 tempGames.sort(naturalSort);
             }
 
@@ -522,8 +556,19 @@
                          onerror="this.style.display='none'">
                 `;
 
+                // 判斷並加入「已外借」的暗色遮罩和標籤
+                const borrowedOverlayHTML = game.borrowed ? `
+                    <div class="absolute inset-0 bg-slate-900/60 z-20 flex items-center justify-center backdrop-blur-[1px] transition-all">
+                        <span class="text-white border-2 border-white/90 rounded-lg px-4 py-1.5 font-bold text-xl tracking-widest transform -rotate-12 shadow-lg bg-black/40">
+                            已外借
+                        </span>
+                    </div>
+                ` : '';
+
+                // 新增 is-borrowed 類別以區分卡片狀態，如果被借出則不再增加懸浮效果，但仍然可以點擊
                 const cardHTML = `
-                    <div class="game-card bg-white rounded-xl shadow border border-slate-100 overflow-hidden flex flex-row h-[160px] relative group cursor-pointer" onclick="window.open('${searchUrl}', '_blank')">
+                    <div class="game-card ${game.borrowed ? 'is-borrowed' : ''} bg-white rounded-xl shadow border border-slate-100 overflow-hidden flex flex-row h-[160px] relative group cursor-pointer" onclick="window.open('${searchUrl}', '_blank')">
+                        ${borrowedOverlayHTML}
                         <div class="img-container">
                             ${imageHtml}
                         </div>
@@ -549,8 +594,6 @@
                                 </div>
                             </div>
                         </div>
-                        
-                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-5 transition-all pointer-events-none"></div>
                     </div>
                 `;
                 elements.grid.insertAdjacentHTML('beforeend', cardHTML);
@@ -629,7 +672,6 @@
         }
 
         function bindPaginationEvents() {
-            // 數字按鈕
             document.querySelectorAll('.num-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const page = parseInt(e.target.dataset.page);
@@ -641,7 +683,6 @@
                 });
             });
 
-            // 上一頁
             document.querySelectorAll('.prev-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     if (currentPage > 1) {
@@ -652,7 +693,6 @@
                 });
             });
 
-            // 下一頁
             document.querySelectorAll('.next-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const totalPages = Math.ceil(filteredGames.length / ITEMS_PER_PAGE);
@@ -664,7 +704,6 @@
                 });
             });
 
-            // 跳頁下拉選單
             document.querySelectorAll('.jump-select').forEach(select => {
                 select.addEventListener('change', (e) => {
                     currentPage = parseInt(e.target.value);
@@ -678,7 +717,7 @@
             elements.controls.scrollIntoView({ behavior: 'smooth' });
         }
 
-        // 綁定篩選事件
+        // 綁定篩選事件 (包含新的外借選單)
         Object.values(elements.inputs).forEach(input => {
             input.addEventListener('input', applyFilters);
             input.addEventListener('change', applyFilters);
@@ -687,6 +726,7 @@
         // 綁定排序按鈕
         elements.sortBtn.addEventListener('click', toggleSortMode);
 
+        // 執行初始化
         init();
     </script>
 </body>
